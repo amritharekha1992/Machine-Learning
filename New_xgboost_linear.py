@@ -1,16 +1,9 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
-# Importing all the needed libraries
+# Importing all the libraries needed for the computation and visualization
 import pandas as pd
 import numpy as np
 from datetime import datetime
 import io
 import sagemaker.amazon.common as smac
-
 import boto3
 from sagemaker import get_execution_role
 import sagemaker
@@ -21,60 +14,33 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-# # Step 1: Loading the data from Amazon S3
-# Let's get the UFO sightings data that is stored in S3 and load it into memory.
-
-# In[4]:
-
-
+# Step 1: Loading the  UFO sightings data stored in Amazon S3 and load it into memory
 
 role = get_execution_role()
 bucket='ml-lab-amritha'
 sub_folder = 'ufo-dataset'
 data_key = 'ufo_fullset.csv'
 data_location = 's3://{}/{}/{}'.format(bucket, sub_folder, data_key)
-
 df = pd.read_csv(data_location, low_memory=False)
 df.head()
 
+# Step 2: Data Pre-processing steps are done - Cleaning, transforming, analyize, and preparing the dataset
 
-# # Step 2: Cleaning, transforming, analyize, and preparing the dataset
-# This step is so important. It's crucial that we clean and prepare our data before we do anything else.
-
-# In[5]:
-
-
-
-# Let's check to see if there are any missing values
+# Checking to see if there are any missing values
 missing_values = df.isnull().values.any()
 if(missing_values):
     display(df[df.isnull().any(axis=1)])
 
-
-# In[6]:
-
-
 df['shape'].value_counts()
 
-
-# In[7]:
-
-
-
-# Replace the missing values with the most common shape
+# Replacing the missing values with the most common shape
 df['shape'] = df['shape'].fillna(df['shape'].value_counts().index[0])
 
-
-# Let's go ahead and start preparing our dataset by transforming some of the values into the correct data types. Here is what we are going to take care of.
-# 
-# Convert the reportedTimestamp and eventDate to a datetime data types.
-# Convert the shape and weather to a category data type.
+# Start preparing our dataset by transforming some of the values into the correct data types. Here is what we are going to take care of. 
+# Converting the reportedTimestamp and eventDate to a datetime data types.
+# Converting the shape and weather to a category data type.
 # Map the physicalEvidence and contact from 'Y', 'N' to 0, 1.
 # Convert the researchOutcome to a category data type (target attribute).
-
-# In[9]:
-
-
 
 df['reportedTimestamp'] = pd.to_datetime(df['reportedTimestamp'])
 df['eventDate'] = pd.to_datetime(df['eventDate'])
@@ -87,25 +53,12 @@ df['contact'] = df['contact'].replace({'Y': 1, 'N': 0})
 
 df['researchOutcome'] = df['researchOutcome'].astype('category')
 
-
-# In[10]:
-
-
 df.dtypes
 
-
-# 
-# Let's visualize some of the data to see if we can find out any important information.
-
-# In[11]:
-
+# Visualization with some plots
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 sns.set_context("paper", font_scale=1.4)
-
-
-# In[12]:
-
 
 m_cts = (df['contact'].value_counts())
 m_ctsx = m_cts.index
@@ -119,9 +72,6 @@ ax.set_ylabel('Number of Sightings')
 ax.set_xticklabels(['No', 'Yes'])
 plt.xticks(rotation=45)
 plt.show()
-
-
-# In[14]:
 
 
 m_cts = (df['physicalEvidence'].value_counts())
@@ -138,9 +88,6 @@ plt.xticks(rotation=45)
 plt.show()
 
 
-# In[15]:
-
-
 m_cts = (df['shape'].value_counts())
 m_ctsx = m_cts.index
 m_ctsy = m_cts.get_values()
@@ -152,10 +99,6 @@ ax.set_xlabel('UFO Shape')
 ax.set_ylabel('Number of Sightings')
 plt.xticks(rotation=45)
 plt.show()
-
-
-# In[16]:
-
 
 m_cts = (df['weather'].value_counts())
 m_ctsx = m_cts.index
@@ -169,11 +112,6 @@ ax.set_ylabel('Number of Sightings')
 plt.xticks(rotation=45)
 plt.show()
 
-
-# In[17]:
-
-
-
 m_cts = (df['researchOutcome'].value_counts())
 m_ctsx = m_cts.index
 m_ctsy = m_cts.get_values()
@@ -185,10 +123,6 @@ ax.set_xlabel('Research Outcome')
 ax.set_ylabel('Number of Sightings')
 plt.xticks(rotation=45)
 plt.show()
-
-
-# In[18]:
-
 
 ufo_yr = df['eventDate'].dt.year  # series with the year exclusively
 
@@ -207,12 +141,8 @@ plt.xlabel('Year')
 years_plot = sns.barplot(x=years_index[:60],y=years_values[:60])
 
 
-# In[19]:
-
-
-# To see the correlation between values
+# To find the correlation between values
 df.corr()
-
 
 # Let's drop the columns that are not important.
 # 
@@ -221,17 +151,10 @@ df.corr()
 # Let's drop the reportedTimestamp becuase when the sighting was reporting isn't going to help us determine the legitimacy of the sighting.
 # We would need to create some sort of buckets for the eventDate and eventTime, like seasons for example, but since the distribution of dates is pretty even, let's go ahead and drop them.
 
-# In[20]:
-
 
 df.drop(columns=['firstName', 'lastName', 'sighting', 'reportedTimestamp', 'eventDate', 'eventTime'], inplace=True)
 
-
-# In[21]:
-
-
 df.head()
-
 
 # 
 # Let's apply one-hot encoding
@@ -239,18 +162,11 @@ df.head()
 # We need to one-hot both the weather attribute and the shape attribute.
 # We also need to transform or map the researchOutcome (target) attribute into numeric values. This is what the alogrithm is expecting. We can do this by mapping unexplained, explained, and probable to 0, 1, 2.
 
-# In[22]:
-
-
-
 # Let's one-hot the weather and shape attribute
 df = pd.get_dummies(df, columns=['weather', 'shape'])
 
 # Let's replace the researchOutcome values with 0, 1, 2 for Unexplained, Explained, and Probable
 df['researchOutcome'] = df['researchOutcome'].replace({'unexplained': 0, 'explained': 1, 'probable': 2})
-
-
-# In[23]:
 
 
 display(df.head())
@@ -263,10 +179,6 @@ display(df.shape)
 # Next Let's use 80% of the dataset for our training set.
 # Then use 10% for validation during training.
 # Finally we will use 10% for testing our model after it is deployed.
-
-# In[24]:
-
-
 
 # Let's go ahead and randomize our data.
 df = df.sample(frac=1).reset_index(drop=True)
@@ -292,8 +204,6 @@ data_test = df[test_list]
 # 
 # After that we will go ahead and create those files on our Notebook instance (stored as CSV) and then upload them to S3.
 
-# In[25]:
-
 
 # Simply moves the researchOutcome attribute to the first position before creating CSV files
 pd.concat([data_train['researchOutcome'], data_train.drop(['researchOutcome'], axis=1)], axis=1).to_csv('train.csv', index=False, header=False)
@@ -307,9 +217,6 @@ boto3.Session().resource('s3').Bucket(bucket).Object('algorithms_lab/xgboost_val
 # # Step 3: Creating and training our model (XGBoost)
 # This is where the magic happens. We will get the ECR container hosted in ECR for the XGBoost algorithm.
 
-# In[26]:
-
-
 # This is where the magic happens. We will get the ECR container hosted in ECR for the XGBoost algorithm.
 
 from sagemaker.amazon.amazon_estimator import get_image_uri
@@ -318,9 +225,6 @@ container = get_image_uri(boto3.Session().region_name, 'xgboost')
 
 # 
 # Next, because we're training with the CSV file format, we'll create inputs that our training function can use as a pointer to the files in S3, which also specify that the content type is CSV.
-
-# In[27]:
-
 
 
 s3_input_train = sagemaker.s3_input(s3_data='s3://{}/algorithms_lab/xgboost_train'.format(bucket), content_type='csv')
@@ -341,9 +245,6 @@ s3_input_validation = sagemaker.s3_input(s3_data='s3://{}/algorithms_lab/xgboost
 # XGBoost Hyperparameters
 # Finally, after everything is included and ready, then we can call the .fit() function which specifies the S3 location for training and validation data.
 
-# In[28]:
-
-
 
 # Create a training job name
 job_name = 'ufo-xgboost-job-{}'.format(datetime.now().strftime("%Y%m%d%H%M%S"))
@@ -351,9 +252,6 @@ print('Here is the job name {}'.format(job_name))
 
 # Here is where the model artifact will be stored
 output_location = 's3://{}/algorithms_lab/xgboost_output'.format(bucket)
-
-
-# In[29]:
 
 
 sess = sagemaker.Session()
@@ -376,9 +274,6 @@ data_channels = {
 xgb.fit(data_channels, job_name=job_name)
 
 
-# In[30]:
-
-
 print('Here is the location of the trained XGBoost model: {}/{}/output/model.tar.gz'.format(output_location, job_name))
 
 
@@ -387,8 +282,6 @@ print('Here is the location of the trained XGBoost model: {}/{}/output/model.tar
 
 # # Step 4: Creating and training our model (Linear Learner)
 # Let's evaluate the Linear Learner algorithm as well. Let's go ahead and randomize the data again and get it ready for the Linear Leaner algorithm. We will also rearrange the columns so it is ready for the algorithm (it expects the first column to be the target attribute)
-
-# In[31]:
 
 
 np.random.seed(0)
@@ -432,8 +325,6 @@ test_y = data_test['researchOutcome'].as_matrix()
 
 # Next, Let's create recordIO file for the training data and upload it to S3.
 
-# In[32]:
-
 
 train_file = 'ufo_sightings_train_recordIO_protobuf.data'
 
@@ -447,8 +338,6 @@ print('The Pipe mode recordIO protobuf training data: {}'.format(training_record
 
 
 # Let's create recordIO file for the validation data and upload it to S3
-
-# In[33]:
 
 
 validation_file = 'ufo_sightings_validatioin_recordIO_protobuf.data'
@@ -465,18 +354,10 @@ print('The Pipe mode recordIO protobuf validation data: {}'.format(validate_reco
 # 
 # Alright we are good to go for the Linear Learner algorithm. Let's get everything we need from the ECR repository to call the Linear Learner algorithm.
 
-# In[34]:
-
-
-
 from sagemaker.amazon.amazon_estimator import get_image_uri
 import sagemaker
 
 container = get_image_uri(boto3.Session().region_name, 'linear-learner', "1")
-
-
-# In[35]:
-
 
 # Create a training job name
 job_name = 'ufo-linear-learner-job-{}'.format(datetime.now().strftime("%Y%m%d%H%M%S"))
@@ -500,14 +381,8 @@ output_location = 's3://{}/algorithms_lab/linearlearner_output'.format(bucket)
 # Linear Learner Hyperparameters
 # Finally, after everything is included and ready, then we can call the .fit() function which specifies the S3 location for training and validation data.
 
-# In[36]:
-
 
 print('The feature_dim hyperparameter needs to be set to {}.'.format(data_train.shape[1] - 1))
-
-
-# In[37]:
-
 
 sess = sagemaker.Session()
 
@@ -533,14 +408,10 @@ data_channels = {
 linear.fit(data_channels, job_name=job_name)
 
 
-# In[38]:
-
-
-
 print('Here is the location of the trained Linear Learner model: {}/{}/output/model.tar.gz'.format(output_location, job_name))
 
 
-# In[ ]:
+
 
 
 
